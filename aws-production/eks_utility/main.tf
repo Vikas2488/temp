@@ -4,7 +4,6 @@
 
 module "common" {
   source        = "../../modules/common"
-  name  = var.product_name
   env           = var.env
   name          = var.name
   tags          = var.tags
