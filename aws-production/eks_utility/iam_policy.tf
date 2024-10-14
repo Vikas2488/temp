@@ -6,7 +6,6 @@ module "albv2_controller_policy" {
   source        = "../../modules/iam_policy"
   # count         = var.deploy_aws_albv2_controller ? 1 : 0
   name          = "albv2-controller"
-  product_name  = var.product_name
   env           = var.env
   # description   = "Required IAM persmission to manage AWS resources using ALB v2 ingress controller."
   tags = merge(
