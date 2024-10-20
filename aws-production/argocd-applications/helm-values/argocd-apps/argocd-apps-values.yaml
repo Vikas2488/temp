@@ -1,0 +1,465 @@
+################################################################
+# Applications
+################################################################
+applications:
+  # https://artifacthub.io/packages/helm/prometheus-community/kube-prometheus-stack
+  kube-prometheus-stack:
+    namespace: argocd
+    additionalLabels: {}
+    additionalAnnotations: {}
+    finalizers:
+    - resources-finalizer.argocd.argoproj.io
+    project: default
+    source: []
+    # ArgoCD v2.6 or later
+    sources: 
+    - chart: kube-prometheus-stack
+      repoURL: https://prometheus-community.github.io/helm-charts
+      targetRevision: 65.3.1
+      helm:
+        values: |-
+          grafana:
+            persistence:
+              enabled: true
+              type: sts
+              storageClassName: gp3
+              accessModes:
+                - ReadWriteOnce
+              size: 20Gi
+              finalizers:
+                - kubernetes.io/pvc-protection
+            additionalDataSources:
+            - name: tempo
+              access: proxy
+              editable: false
+              jsonData:
+                tlsSkipVerify: true
+              orgId: 1
+              type: tempo
+              url: http://tempo.observability.svc.cluster.local:3100
+              version: 1
+            - name: Loki
+              type: loki
+              access: proxy
+              url: http://loki.observability.svc.cluster.local:3100
+              jsonData: {}
+              uid: loki
+    destination:
+      server: https://kubernetes.default.svc
+      namespace: observability
+    syncPolicy:
+      automated:
+        prune: false
+        selfHeal: false
+      syncOptions:
+      - CreateNamespace=true
+    revisionHistoryLimit: null
+    ignoreDifferences: []
+    info: []
+  tempo:
+    namespace: argocd
+    additionalLabels: {}
+    additionalAnnotations: {}
+    finalizers:
+    - resources-finalizer.argocd.argoproj.io
+    project: utility
+    source: []
+    # ArgoCD v2.6 or later
+    sources: 
+    - chart: tempo
+      repoURL: https://grafana.github.io/helm-charts
+      targetRevision: 1.8.0
+      helm:
+        values: |-
+          resources: 
+            requests:
+              cpu: "1000m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+          persistence:
+            enabled: true
+            storageClassName: "gp3"
+            accessModes:
+              - "ReadWriteOnce"
+            size: "10Gi"
+    destination:
+      server: https://kubernetes.default.svc
+      namespace: observability
+    syncPolicy:
+      automated:
+        prune: false
+        selfHeal: false
+      syncOptions:
+      - CreateNamespace=true
+    revisionHistoryLimit: null
+    ignoreDifferences: []
+    info: []
+  loki:
+    namespace: argocd
+    additionalLabels: {}
+    additionalAnnotations: {}
+    finalizers:
+    - resources-finalizer.argocd.argoproj.io
+    project: utility
+    source: []
+    # ArgoCD v2.6 or later
+    sources: 
+    - chart: loki-stack
+      repoURL: https://grafana.github.io/helm-charts
+      targetRevision: 2.10.2
+      helm:
+        values: |-
+          loki:
+            enabled: true
+            isDefault: true
+            url: http://loki.observability.svc.cluster.local:3100
+            readinessProbe:
+              httpGet:
+                path: /ready
+                port: 3100
+              initialDelaySeconds: 45
+            livenessProbe:
+              httpGet:
+                path: /ready
+                port: 3100
+              initialDelaySeconds: 45
+          promtail:
+            enabled: true
+    destination:
+      server: https://kubernetes.default.svc
+      namespace: observability
+    syncPolicy:
+      automated:
+        prune: false
+        selfHeal: false
+      syncOptions:
+      - CreateNamespace=true
+    revisionHistoryLimit: null
+    ignoreDifferences: []
+    info: []
+  mimir:
+    namespace: argocd
+    additionalLabels: {}
+    additionalAnnotations: {}
+    finalizers:
+    - resources-finalizer.argocd.argoproj.io
+    project: utility
+    source: []
+    # ArgoCD v2.6 or later
+    sources: 
+    - chart: mimir-distributed
+      repoURL: https://grafana.github.io/helm-charts
+      targetRevision: 5.3.0
+      helm:
+        values: |-
+          alertmanager:
+            persistentVolume:
+              enabled: true
+              storageClass: gp3
+              size: 1Gi
+              accessModes:
+                - ReadWriteOnce
+            replicas: 1
+            resources:
+              limits:
+                memory: 64Mi
+              requests:
+                cpu: 10m
+                memory: 32Mi
+            statefulSet:
+              enabled: true
+          compactor:
+            persistentVolume:
+              enabled: true
+              storageClass: gp3
+              size: 2Gi
+              accessModes:
+                - ReadWriteOnce
+            resources:
+              limits:
+                memory: 512Mi
+              requests:
+                cpu: 100m
+                memory: 512Mi
+          distributor:
+            replicas: 1
+            resources:
+              limits:
+                memory: 512Mi
+              requests:
+                cpu: 100m
+                memory: 512Mi
+          ingester:
+            replicas: 3
+            statefulSet:
+              enabled: true
+            service:
+              annotations: {}
+              labels: {}
+            schedulerName: ""
+            resources:
+              limits:
+                memory: 512Mi
+              requests:
+                cpu: 100m
+                memory: 512Mi
+            extraArgs: {}
+            podLabels: {}
+            podAnnotations: {}
+            priorityClassName: null
+            podDisruptionBudget:
+              maxUnavailable: 1
+            podManagementPolicy: Parallel
+            nodeSelector: {}
+            affinity: {}
+            topologySpreadConstraints:
+              maxSkew: 1
+              topologyKey: kubernetes.io/hostname
+              whenUnsatisfiable: ScheduleAnyway
+            annotations: {}
+            persistentVolume:
+              enabled: true
+              storageClass: gp3
+              annotations: {}
+              accessModes:
+                - ReadWriteOnce
+              size: 2Gi
+              subPath: ""
+              enableRetentionPolicy: false
+              whenDeleted: Retain
+              whenScaled: Retain
+            readinessProbe:
+              httpGet:
+                path: /ready
+                port: http-metrics
+              initialDelaySeconds: 60
+            securityContext: {}
+            containerSecurityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop: [ALL]
+            statefulStrategy:
+              type: RollingUpdate
+            terminationGracePeriodSeconds: 1200
+            tolerations: []
+            initContainers: []
+            extraContainers: []
+            extraVolumes: []
+            extraVolumeMounts: []
+            env: []
+            extraEnvFrom: []
+            jaegerReporterMaxQueueSize: 1000
+            zoneAwareReplication:
+              enabled: true
+              maxUnavailable: 50
+              topologyKey: null
+              migration:
+                enabled: false
+                excludeDefaultZone: false
+                readPath: false
+                replicas: 0
+                scaleDownDefaultZone: false
+                writePath: false
+              zones:
+                - name: zone-a
+                  nodeSelector: null
+                  extraAffinity: {}
+                  storageClass: gp3
+                - name: zone-b
+                  nodeSelector: null
+                  extraAffinity: {}
+                  storageClass: gp3
+                - name: zone-c
+                  nodeSelector: null
+                  extraAffinity: {}
+                  storageClass: gp3
+          admin-cache:
+            enabled: false
+            replicas: 1
+          chunks-cache:
+            enabled: false
+            replicas: 1
+          index-cache:
+            enabled: false
+            replicas: 1
+          metadata-cache:
+            enabled: false
+            replicas: 1
+          results-cache:
+            enabled: false
+            replicas: 1
+          minio:
+            enabled: true
+            mode: standalone
+            rootUser: grafana-mimir
+            buckets:
+              - name: mimir-tsdb
+                policy: none
+                purge: false
+              - name: mimir-ruler
+                policy: none
+                purge: false
+              - name: enterprise-metrics-tsdb
+                policy: none
+                purge: false
+              - name: enterprise-metrics-admin
+                policy: none
+                purge: false
+              - name: enterprise-metrics-ruler
+                policy: none
+                purge: false
+            persistence:
+              enabled: true
+              storageClass: gp3
+              size: 5Gi
+              accessModes:
+                - ReadWriteOnce
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+            rootPassword: supersecret
+            configPathmc: "/tmp/minio/mc/"
+          overrides_exporter:
+            enabled: true
+            replicas: 1
+            resources:
+              limits:
+                memory: 128Mi  # Increased to match the request
+              requests:
+                cpu: 100m
+                memory: 128Mi
+          querier:
+            replicas: 1
+            resources:
+              limits:
+                memory: 128Mi  # Increased to match the request
+              requests:
+                cpu: 100m
+                memory: 128Mi
+          query_frontend:
+            replicas: 1
+            resources:
+              limits:
+                memory: 128Mi  # Increased to match the request
+              requests:
+                cpu: 100m
+                memory: 128Mi
+          ruler:
+            enabled: true
+            replicas: 1
+            resources:
+              limits:
+                memory: 128Mi  # Increased to match the request
+              requests:
+                cpu: 100m
+                memory: 128Mi
+          store_gateway:
+            replicas: 1
+            service:
+              annotations: {}
+              labels: {}
+            schedulerName: ""
+            resources:
+              limits:
+                memory: 512Mi
+              requests:
+                cpu: 100m
+                memory: 512Mi
+            extraArgs: {}
+            podLabels: {}
+            podAnnotations: {}
+            podManagementPolicy: OrderedReady
+            podDisruptionBudget:
+              maxUnavailable: 1
+            priorityClassName: null
+            nodeSelector: {}
+            affinity: {}
+            topologySpreadConstraints:
+              maxSkew: 1
+              topologyKey: kubernetes.io/hostname
+              whenUnsatisfiable: ScheduleAnyway
+            annotations: {}
+            persistentVolume:
+              enabled: true
+              storageClass: gp3
+              accessModes:
+                - ReadWriteOnce
+              size: 2Gi
+              subPath: ""
+              enableRetentionPolicy: false
+              whenDeleted: Retain
+              whenScaled: Retain
+            readinessProbe:
+              httpGet:
+                path: /ready
+                port: http-metrics
+              initialDelaySeconds: 60
+            securityContext: {}
+            containerSecurityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop: [ALL]
+            strategy:
+              type: RollingUpdate
+            terminationGracePeriodSeconds: 120
+            tolerations: []
+            initContainers: []
+            extraContainers: []
+            extraVolumes: []
+            extraVolumeMounts: []
+            env: []
+            extraEnvFrom: []
+            jaegerReporterMaxQueueSize: 1000
+            zoneAwareReplication:
+              enabled: true
+              maxUnavailable: 50
+              topologyKey: null
+              migration:
+                enabled: false
+                readPath: false
+              zones:
+                - name: zone-a
+                  nodeSelector: null
+                  extraAffinity: {}
+                  storageClass: gp3
+                - name: zone-b
+                  nodeSelector: null
+                  extraAffinity: {}
+                  storageClass: gp3
+                - name: zone-c
+                  nodeSelector: null
+                  extraAffinity: {}
+                  storageClass: gp3
+          admin_api:
+            replicas: 1
+            resources:
+              limits:
+                memory: 64Mi
+              requests:
+                cpu: 10m
+                memory: 32Mi
+    destination:
+      server: https://kubernetes.default.svc
+      namespace: observability
+    syncPolicy:
+      automated:
+        prune: false
+        selfHeal: false
+      syncOptions:
+      - CreateNamespace=true
+    revisionHistoryLimit: null
+    ignoreDifferences: []
+    info: []
+
+projects: []
+
+applicationsets: []
+
+itemTemplates: []
+
+extensions: []

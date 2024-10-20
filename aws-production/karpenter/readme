@@ -1,0 +1,14 @@
+kubectl logs -f -n karpenter -l app.kubernetes.io/name=karpenter -c controller
+
+kubectl get nodes -L karpenter.sh/registered
+
+kubectl get pods -A -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeName
+
+
+
+Example of Node pool configuration
+https://github.com/aws/karpenter-provider-aws/tree/main/examples/v1beta1
+
+
+Documentation
+https://karpenter.sh/docs/concepts/nodepools/
