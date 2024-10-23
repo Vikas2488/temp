@@ -1,0 +1,5 @@
+env = "prod"
+owner = "sameedusmani@gmail.com"
+aws_region = "ap-south-1"
+region = "ap-south-1"
+name = "aguken"
