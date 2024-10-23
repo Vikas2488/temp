@@ -3,7 +3,7 @@
 ################################################################################
 
 module "common" {
-  source        = "../../iac-terraform-modules/common"
+  source        = "../../modules/common"
   env           = var.env
   name          = var.name
   tags          = var.tags
