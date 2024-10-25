@@ -3,7 +3,7 @@
 ####################################################################################
 
 locals {
-  name  = var.name
+  name        = "${replace(module.common.id, "_", "-")}"
   env           = var.env
   owner         = var.owner
   global_tags   = {
@@ -19,7 +19,7 @@ locals {
 ####################################################################################
 
 locals {
-    name        = "${replace(module.common.id, "_", "-")}"
+    
     region      = var.region
     tags        = local.global_tags
 
